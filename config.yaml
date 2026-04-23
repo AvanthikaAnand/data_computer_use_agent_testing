@@ -1,0 +1,76 @@
+# Computer Use Agent - Configuration
+# Switch providers/models here without touching code
+
+agent:
+  max_turns: 50
+  screenshot_delay: 0.5       # seconds between screenshot and next action (lower = less lag)
+  typing_delay_ms: 3          # ms per character when typing
+  typing_chunk_size: 50
+
+# --- LLM Provider ---
+# Options: bedrock | anthropic | ollama | litellm
+provider: bedrock
+
+# --- Model Selection ---
+# Bedrock model IDs (cross-region inference prefix "us." for lower latency)
+models:
+  # Anthropic on Bedrock
+  claude-sonnet-4-5:   "us.anthropic.claude-sonnet-4-5-20251001-v1:0"
+  claude-sonnet-3-7:   "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
+  claude-sonnet-3-5:   "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+  claude-haiku-3-5:    "us.anthropic.claude-haiku-3-5-20241022-v1:0"
+  # Meta Llama on Bedrock
+  llama-3-2-90b:       "us.meta.llama3-2-90b-instruct-v1:0"
+  llama-3-3-70b:       "us.meta.llama3-3-70b-instruct-v1:0"
+  # Mistral on Bedrock
+  mistral-large:       "mistral.mistral-large-2402-v1:0"
+  # Anthropic direct (non-Bedrock)
+  claude-direct-sonnet: "claude-sonnet-4-5-20251001"
+  # Ollama local models
+  ollama-llama3-2-vision: "ollama/llama3.2-vision"
+  ollama-llava:           "ollama/llava"
+  ollama-qwen2-5vl:       "ollama/qwen2.5vl"
+
+# Active model (key from models map above, or a raw model ID string)
+active_model: claude-sonnet-3-7
+
+# --- Provider-specific settings ---
+bedrock:
+  region: us-east-1
+  # Credentials via env: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY
+  # or IAM role (recommended on EC2/ECS)
+
+anthropic:
+  # Credentials via env: ANTHROPIC_API_KEY
+  base_url: null   # set for custom proxy
+
+ollama:
+  base_url: "http://localhost:11434"
+
+litellm:
+  # Use litellm as universal proxy — set LITELLM_API_BASE if using hosted proxy
+  base_url: null
+
+# --- Model Capabilities ---
+# Override per model if needed
+model_capabilities:
+  computer_use_tool_version: "computer_use_20250124"   # or computer_use_20241022
+  max_output_tokens: 16000
+  supports_thinking: true
+  thinking_budget: 8000          # tokens budget for extended thinking (0 = disabled)
+  enable_prompt_caching: true
+
+# --- Desktop Environment ---
+desktop:
+  display: ":1"
+  width: 1366
+  height: 768
+  depth: 24
+  vnc_port: 5901
+  novnc_port: 6080
+
+# --- UI ---
+ui:
+  port: 7860
+  share: false        # set true to get a public Gradio link
+  theme: "soft"       # soft | glass | monochrome | base

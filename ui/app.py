@@ -254,7 +254,7 @@ def build_ui() -> gr.Blocks:
 def main():
     cfg = load_config()
     app = build_ui()
-    app.launch(server_port=cfg.ui_port, share=cfg.ui_share)
+    app.launch(server_name="0.0.0.0", server_port=cfg.ui_port, share=cfg.ui_share)
 
 
 if __name__ == "__main__":

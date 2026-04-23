@@ -74,7 +74,9 @@ RUN mkdir -p /opt/novnc && \
 
 # ── Non-root user ─────────────────────────────────────────────────────────────
 RUN useradd -m -s /bin/bash agent && \
-    echo "agent ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+    echo "agent ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
+    # X11 socket dir must exist with sticky bit before Xvfb runs as non-root
+    mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
 
 WORKDIR /home/agent/app
 
@@ -96,6 +98,6 @@ RUN chmod +x /entrypoint.sh && chown -R agent:agent /home/agent/app
 
 USER agent
 
-EXPOSE 6080 5901 7860
+EXPOSE 6080 5901 7860 8000
 
 ENTRYPOINT ["/entrypoint.sh"]

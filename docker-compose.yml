@@ -59,6 +59,8 @@ services:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY:-sk-litellm-local}
+      - UI_USERNAME=${LITELLM_UI_USERNAME:-admin}
+      - UI_PASSWORD=${LITELLM_UI_PASSWORD:-admin}
     restart: unless-stopped
 
   # ── Agent (scale: docker compose up --scale agent=3) ─────────────────────

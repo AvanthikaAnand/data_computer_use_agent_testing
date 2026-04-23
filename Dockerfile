@@ -1,7 +1,8 @@
-# Computer Use Agent — Ubuntu 24.04 + XFCE4 + KasmVNC + Chrome
-# Faster, more modern desktop than Ubuntu 22 + mutter + x11vnc
+# Computer Use Agent — Ubuntu 24.04 + XFCE4 + Chrome
+# Pinned to linux/amd64: Chrome only ships amd64 packages.
+# On Apple Silicon, Docker Desktop uses Rosetta 2 for emulation automatically.
 
-FROM ubuntu:24.04
+FROM --platform=linux/amd64 ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive \
     TZ=UTC \

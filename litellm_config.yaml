@@ -1,0 +1,63 @@
+# LiteLLM Proxy Configuration
+# Dashboard: http://localhost:4000/ui
+# Docs:      http://localhost:4000/docs
+
+model_list:
+  # ── Anthropic on Bedrock ──────────────────────────────────────────────────
+  - model_name: claude-sonnet-4-5
+    litellm_params:
+      model: bedrock/us.anthropic.claude-sonnet-4-5-20251001-v1:0
+      aws_region_name: os.environ/AWS_DEFAULT_REGION
+
+  - model_name: claude-sonnet-3-7
+    litellm_params:
+      model: bedrock/us.anthropic.claude-3-7-sonnet-20250219-v1:0
+      aws_region_name: os.environ/AWS_DEFAULT_REGION
+
+  - model_name: claude-sonnet-3-5
+    litellm_params:
+      model: bedrock/us.anthropic.claude-3-5-sonnet-20241022-v2:0
+      aws_region_name: os.environ/AWS_DEFAULT_REGION
+
+  - model_name: claude-haiku-3-5
+    litellm_params:
+      model: bedrock/us.anthropic.claude-haiku-3-5-20241022-v1:0
+      aws_region_name: os.environ/AWS_DEFAULT_REGION
+
+  # ── Meta Llama on Bedrock ─────────────────────────────────────────────────
+  - model_name: llama-3-2-90b
+    litellm_params:
+      model: bedrock/us.meta.llama3-2-90b-instruct-v1:0
+      aws_region_name: os.environ/AWS_DEFAULT_REGION
+
+  - model_name: llama-3-3-70b
+    litellm_params:
+      model: bedrock/us.meta.llama3-3-70b-instruct-v1:0
+      aws_region_name: os.environ/AWS_DEFAULT_REGION
+
+  # ── Anthropic direct (fallback / non-AWS) ─────────────────────────────────
+  - model_name: claude-direct-sonnet
+    litellm_params:
+      model: anthropic/claude-sonnet-4-5-20251001
+      api_key: os.environ/ANTHROPIC_API_KEY
+
+  # ── Ollama local models ───────────────────────────────────────────────────
+  - model_name: llava
+    litellm_params:
+      model: ollama/llava
+      api_base: os.environ/OLLAMA_BASE_URL
+
+  - model_name: qwen2-5-vl
+    litellm_params:
+      model: ollama/qwen2.5vl
+      api_base: os.environ/OLLAMA_BASE_URL
+
+litellm_settings:
+  drop_params: true               # ignore unsupported params per model
+  request_timeout: 600
+  num_retries: 3
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY   # set in .env; gates the /ui dashboard
+  store_model_in_db: true
+  database_url: "sqlite:////data/litellm.db"  # persists spend data across restarts

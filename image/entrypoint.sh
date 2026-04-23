@@ -13,19 +13,14 @@ NOVNC_PORT=${NOVNC_PORT:-6080}
 
 echo "[entrypoint] Starting Xvfb on display ${DISPLAY} at ${WIDTH}x${HEIGHT}x${DEPTH}"
 Xvfb ${DISPLAY} -screen 0 ${WIDTH}x${HEIGHT}x${DEPTH} -ac +extension GLX +render -noreset &
-XVFB_PID=$!
 
-# Wait for Xvfb to be ready
-sleep 1
 until xdpyinfo -display ${DISPLAY} >/dev/null 2>&1; do sleep 0.2; done
 echo "[entrypoint] Xvfb ready"
 
-# Start XFCE4 desktop (lightweight, fast)
 echo "[entrypoint] Starting XFCE4"
 startxfce4 &
 sleep 2
 
-# x11vnc — VNC server over the virtual display
 echo "[entrypoint] Starting x11vnc on port ${VNC_PORT}"
 x11vnc \
     -display ${DISPLAY} \
@@ -41,7 +36,6 @@ x11vnc \
     -shared \
     -bg -o /tmp/x11vnc.log
 
-# noVNC — web browser VNC client
 echo "[entrypoint] Starting noVNC on port ${NOVNC_PORT}"
 websockify \
     --web /opt/novnc \
@@ -51,11 +45,15 @@ websockify \
 
 echo "[entrypoint] Desktop ready at http://localhost:${NOVNC_PORT}"
 
-# Set a sensible wallpaper and XFCE appearance
 xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitorscreen/workspace0/color-style -s 0 2>/dev/null || true
 xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitorscreen/workspace0/rgba1 -s "0.172549 0.243137 0.313725 1.000000" 2>/dev/null || true
 
-# Launch the Gradio UI
-echo "[entrypoint] Starting agent UI on port 7860"
 cd /home/agent/app
+
+# FastAPI — REST + SSE API (port 8000)
+echo "[entrypoint] Starting FastAPI on port 8000"
+uvicorn api.main:app --host 0.0.0.0 --port 8000 --workers 1 &
+
+# Gradio UI (port 7860)
+echo "[entrypoint] Starting Gradio UI on port 7860"
 exec python -m ui.app

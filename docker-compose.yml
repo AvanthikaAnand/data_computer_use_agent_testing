@@ -1,36 +1,93 @@
-version: "3.9"
-
 services:
+
+  # ── Traefik load balancer ────────────────────────────────────────────────
+  traefik:
+    image: traefik:v3.1
+    container_name: traefik
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --api.dashboard=true
+      - --api.insecure=true          # dashboard on :8080 (restrict in prod)
+      - --accesslog=true
+    ports:
+      - "80:80"       # agent API traffic (load-balanced across all agent containers)
+      - "8081:8080"   # Traefik dashboard  →  http://localhost:8081
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
+  # ── LiteLLM proxy (cost tracking + model routing) ────────────────────────
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    container_name: litellm
+    command: --config /litellm_config.yaml --detailed_debug
+    ports:
+      - "4000:4000"   # LiteLLM API  →  http://localhost:4000
+                      # Dashboard   →  http://localhost:4000/ui
+    volumes:
+      - ./litellm_config.yaml:/litellm_config.yaml:ro
+      - litellm-data:/data              # persists spend DB across restarts
+    environment:
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
+      - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - LITELLM_MASTER_KEY=${LITELLM_MASTER_KEY:-sk-litellm-local}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Agent (scale with: docker compose up --scale agent=3) ────────────────
   agent:
-    build: .
+    build:
+      context: .
+      platforms:
+        - linux/amd64
     image: cu-agent:latest
-    container_name: cu-agent
-    shm_size: "2gb"          # Chrome needs this
+    platform: linux/amd64
+    # No container_name — required for scaling (each gets a unique name)
+    shm_size: "2gb"
+    depends_on:
+      litellm:
+        condition: service_healthy
     environment:
       - DISPLAY_NUM=1
       - WIDTH=${WIDTH:-1366}
       - HEIGHT=${HEIGHT:-768}
-      # Provider selection (override in .env)
       - CU_PROVIDER=${CU_PROVIDER:-bedrock}
       - CU_MODEL=${CU_MODEL:-claude-sonnet-3-7}
-      # AWS (for Bedrock)
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
       - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
-      # Direct Anthropic
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # Point litellm provider at the sidecar
+      - LITELLM_API_BASE=http://litellm:4000
     ports:
-      - "6080:6080"    # noVNC desktop (browser access)
-      - "5901:5901"    # Raw VNC (use VNC client for lower latency)
-      - "7860:7860"    # Gradio agent UI
+      # noVNC desktop and Gradio exposed per-container for direct access
+      # When scaling, use unique host ports: --scale agent=3 assigns random ports
+      - "6080"    # noVNC desktop
+      - "7860"    # Gradio UI
+      # Port 8000 (FastAPI) is NOT published — Traefik handles it internally
     volumes:
       - ./config.yaml:/home/agent/app/config.yaml:ro
-      - agent-home:/home/agent
     restart: unless-stopped
     cap_add:
-      - SYS_ADMIN       # required for Xvfb
+      - SYS_ADMIN
     security_opt:
       - seccomp:unconfined
+    labels:
+      - "traefik.enable=true"
+      # Route all /api/* and /task/* through Traefik (load-balanced)
+      - "traefik.http.routers.agent-api.rule=PathPrefix(`/task`) || PathPrefix(`/health`) || PathPrefix(`/metrics`)"
+      - "traefik.http.routers.agent-api.entrypoints=web"
+      - "traefik.http.services.agent-api.loadbalancer.server.port=8000"
+      - "traefik.http.services.agent-api.loadbalancer.sticky.cookie=true"   # pin SSE sessions
 
 volumes:
-  agent-home:
+  litellm-data:

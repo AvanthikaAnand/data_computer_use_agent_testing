@@ -60,4 +60,4 @@ litellm_settings:
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY   # set in .env; gates the /ui dashboard
   store_model_in_db: true
-  database_url: "sqlite:////data/litellm.db"  # persists spend data across restarts
+  # DATABASE_URL is injected via environment variable in docker-compose

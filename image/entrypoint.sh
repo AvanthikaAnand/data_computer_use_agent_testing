@@ -14,7 +14,7 @@ NOVNC_PORT=${NOVNC_PORT:-6080}
 echo "[entrypoint] Starting Xvfb on display ${DISPLAY} at ${WIDTH}x${HEIGHT}x${DEPTH}"
 Xvfb ${DISPLAY} -screen 0 ${WIDTH}x${HEIGHT}x${DEPTH} -ac +extension GLX +render -noreset &
 
-until xdpyinfo -display ${DISPLAY} >/dev/null 2>&1; do sleep 0.2; done
+until [ -S /tmp/.X11-unix/X${DISPLAY_NUM} ]; do sleep 0.2; done
 echo "[entrypoint] Xvfb ready"
 
 echo "[entrypoint] Starting XFCE4"

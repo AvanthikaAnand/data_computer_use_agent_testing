@@ -33,6 +33,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Screenshot + input control
     scrot \
     xdotool \
+    x11-utils \
     # Fonts & icons
     fonts-liberation \
     fonts-noto-color-emoji \

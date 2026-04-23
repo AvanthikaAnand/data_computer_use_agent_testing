@@ -6,6 +6,7 @@ services:
   traefik:
     image: traefik:v2.11
     container_name: traefik
+    user: root                  # needed to read /var/run/docker.sock on Mac
     command:
       - --providers.docker=true
       - --providers.docker.exposedbydefault=false

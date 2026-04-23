@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Google Chrome
+Comment=Browse the web
+Exec=google-chrome --no-sandbox %U
+Icon=google-chrome
+Type=Application
+Categories=Network;WebBrowser;

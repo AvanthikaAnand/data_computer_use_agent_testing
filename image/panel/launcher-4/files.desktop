@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Files
+Comment=Browse files and folders
+Exec=thunar
+Icon=system-file-manager
+Type=Application
+Categories=System;FileManager;

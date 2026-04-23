@@ -5,7 +5,7 @@
 FROM --platform=linux/amd64 ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive \
-    TZ=UTC \
+    TZ=Asia/Singapore \
     DISPLAY=:1 \
     DISPLAY_NUM=1 \
     WIDTH=1366 \
@@ -52,7 +52,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     dbus-x11 \
     at-spi2-core \
-    && rm -rf /var/lib/apt/lists/*
+    tzdata \
+    apt-transport-https \
+    && rm -rf /var/lib/apt/lists/* \
+    # Set timezone
+    && ln -sf /usr/share/zoneinfo/Asia/Singapore /etc/localtime \
+    && echo "Asia/Singapore" > /etc/timezone
 
 # ── Google Chrome ─────────────────────────────────────────────────────────────
 RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
@@ -66,6 +71,15 @@ RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
 # ── Firefox ───────────────────────────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends firefox && \
     rm -rf /var/lib/apt/lists/*
+
+# ── OpenVPN3 ─────────────────────────────────────────────────────────────────
+RUN curl -fsSL https://packages.openvpn.net/packages-repo.gpg \
+        | gpg --dearmor -o /etc/apt/keyrings/openvpn.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/openvpn.gpg] \
+        https://packages.openvpn.net/openvpn3/debian noble main" \
+        > /etc/apt/sources.list.d/openvpn3.list && \
+    apt-get update && apt-get install -y --no-install-recommends openvpn3 \
+    && rm -rf /var/lib/apt/lists/*
 
 # ── noVNC (web client) ────────────────────────────────────────────────────────
 RUN mkdir -p /opt/novnc && \
@@ -93,7 +107,6 @@ ENV PATH="/opt/venv/bin:$PATH"
 COPY . .
 
 # ── Desktop environment config ────────────────────────────────────────────────
-COPY image/xfce4-panel.xml /etc/xdg/xfce4/panel/default.xml
 COPY image/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh && chown -R agent:agent /home/agent/app
 

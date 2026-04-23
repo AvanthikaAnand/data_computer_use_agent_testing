@@ -86,6 +86,9 @@ services:
       - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
       - LITELLM_API_BASE=http://litellm:4000
+      # VPN keepalive — leave blank to disable
+      - VPN_KEEPALIVE_URL=${VPN_KEEPALIVE_URL:-}
+      - VPN_CHECK_INTERVAL=${VPN_CHECK_INTERVAL:-300}
     ports:
       - "6080:6080"   # noVNC desktop
       - "7860:7860"   # Gradio UI

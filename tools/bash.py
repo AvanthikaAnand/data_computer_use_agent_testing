@@ -8,6 +8,14 @@ from dataclasses import dataclass
 
 TIMEOUT = 120
 SENTINEL = "<<<CU_BASH_DONE>>>"
+MAX_OUTPUT_LEN = 16_000
+TRUNCATED_NOTICE = "\n<response clipped — output exceeded 16 000 chars. Use grep or redirect to a file to read large outputs.>"
+
+
+def _maybe_truncate(text: str) -> str:
+    if len(text) <= MAX_OUTPUT_LEN:
+        return text
+    return text[:MAX_OUTPUT_LEN] + TRUNCATED_NOTICE
 
 
 @dataclass
@@ -61,7 +69,8 @@ class BashTool:
         except asyncio.TimeoutError:
             return ToolResult(error=f"Command timed out after {TIMEOUT}s")
 
-        return ToolResult(output="".join(output_parts).strip() or "(no output)")
+        raw = "".join(output_parts).strip() or "(no output)"
+        return ToolResult(output=_maybe_truncate(raw))
 
     async def _start(self) -> None:
         if self._process:

@@ -51,6 +51,7 @@ class AgentConfig:
     screenshot_delay: float = 0.5
     typing_delay_ms: int = 3
     typing_chunk_size: int = 50
+    only_n_most_recent_images: int = 10  # 0 = keep all (not recommended on long tasks)
 
     # model capabilities
     capabilities: ModelCapabilities = field(default_factory=ModelCapabilities)
@@ -94,6 +95,7 @@ def load_config(path: Path = _CONFIG_PATH) -> AgentConfig:
         screenshot_delay=agent_raw.get("screenshot_delay", 0.5),
         typing_delay_ms=agent_raw.get("typing_delay_ms", 3),
         typing_chunk_size=agent_raw.get("typing_chunk_size", 50),
+        only_n_most_recent_images=agent_raw.get("only_n_most_recent_images", 10),
         capabilities=ModelCapabilities(
             computer_use_tool_version=caps_raw.get("computer_use_tool_version", "computer_use_20250124"),
             max_output_tokens=caps_raw.get("max_output_tokens", 16000),

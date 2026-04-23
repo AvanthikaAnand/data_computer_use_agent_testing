@@ -6,6 +6,7 @@ agent:
   screenshot_delay: 0.5       # seconds between screenshot and next action (lower = less lag)
   typing_delay_ms: 3          # ms per character when typing
   typing_chunk_size: 50
+  only_n_most_recent_images: 10  # drop screenshots older than N turns (0 = keep all)
 
 # --- LLM Provider ---
 # Options: bedrock | anthropic | ollama | litellm

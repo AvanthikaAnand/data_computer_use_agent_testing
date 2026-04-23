@@ -50,6 +50,12 @@ xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitorscreen/workspace0/rgba
 
 cd /home/agent/app
 
+# VPN keepalive — only runs if VPN_KEEPALIVE_URL is set
+if [ -n "${VPN_KEEPALIVE_URL:-}" ]; then
+    echo "[entrypoint] Starting VPN keepalive (url=${VPN_KEEPALIVE_URL})"
+    bash /home/agent/app/image/maintain_vpn_connection.sh &
+fi
+
 # FastAPI — REST + SSE API (port 8000)
 echo "[entrypoint] Starting FastAPI on port 8000"
 uvicorn api.main:app --host 0.0.0.0 --port 8000 --workers 1 &

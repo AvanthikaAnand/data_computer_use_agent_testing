@@ -15,7 +15,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
     NOVNC_PORT=6080 \
     HOME=/home/agent \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    # Chrome flags for stable rendering inside Docker
+    CHROME_FLAGS="--no-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --no-first-run --no-default-browser-check"
 
 # ── System packages ───────────────────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -71,6 +73,10 @@ RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
 # ── Firefox ───────────────────────────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends firefox && \
     rm -rf /var/lib/apt/lists/*
+
+# ── Chrome wrapper (ensures Docker-safe flags for all launch paths) ───────────
+COPY image/chrome-wrapper.sh /usr/local/bin/google-chrome
+RUN chmod +x /usr/local/bin/google-chrome
 
 # ── OpenVPN3 ─────────────────────────────────────────────────────────────────
 RUN curl -fsSL https://packages.openvpn.net/packages-repo.gpg \

@@ -96,8 +96,9 @@ RUN mkdir -p /opt/novnc && \
 # ── Non-root user ─────────────────────────────────────────────────────────────
 RUN useradd -m -s /bin/bash agent && \
     echo "agent ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
-    # X11 socket dir must exist with sticky bit before Xvfb runs as non-root
-    mkdir -p /tmp/.X11-unix && chmod 1777 /tmp/.X11-unix
+    # X11 + ICE socket dirs must exist with sticky bit before Xvfb runs as non-root
+    mkdir -p /tmp/.X11-unix /tmp/.ICE-unix && \
+    chmod 1777 /tmp/.X11-unix /tmp/.ICE-unix
 
 WORKDIR /home/agent/app
 

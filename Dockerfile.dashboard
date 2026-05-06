@@ -1,0 +1,14 @@
+# Lightweight dashboard image — no desktop, just Python + Gradio
+FROM --platform=linux/amd64 python:3.11-slim
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir gradio>=4.44.0 httpx>=0.27.0
+
+COPY agent/      ./agent/
+COPY ui/         ./ui/
+COPY config.yaml ./
+
+EXPOSE 8503
+
+CMD ["python", "-m", "ui.dashboard"]

@@ -1,26 +1,38 @@
-"""In-memory session store for agent task tracking."""
+"""Session store — richer status enum + per-agent registry."""
 
 from __future__ import annotations
 
+import os
 import time
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Optional
 from uuid import uuid4
 
 from agent.loop import AgentEvent, TokenUsage
 
 
+class SessionStatus(str, Enum):
+    PENDING      = "pending"
+    QUEUED       = "queued"
+    RUNNING      = "running"
+    DONE         = "done"
+    ERROR        = "error"
+    INTERRUPTED  = "interrupted"
+
+
 @dataclass
 class Session:
     id: str
     task: str
-    created_at: float = field(default_factory=time.time)
-    status: str = "pending"        # pending | running | done | error
+    agent_id: str          = field(default_factory=lambda: os.environ.get("AGENT_ID", "1"))
+    created_at: float      = field(default_factory=time.time)
+    status: SessionStatus  = SessionStatus.PENDING
     events: list[AgentEvent] = field(default_factory=list)
     usage: Optional[TokenUsage] = None
-    error: Optional[str] = None
-    # Subscribers waiting on new events (index into self.events)
-    _cursors: list[int] = field(default_factory=list)
+    error: Optional[str]   = None
+    queue_position: int    = 0
+    extracted_data: Optional[dict] = None   # structured data the agent extracted
 
     def append_event(self, event: AgentEvent) -> None:
         self.events.append(event)
@@ -28,11 +40,11 @@ class Session:
             self.usage = event.data
         elif event.type == "error":
             self.error = event.data
+            self.status = SessionStatus.ERROR
         elif event.type == "done":
-            self.status = "done"
+            self.status = SessionStatus.DONE
 
 
-# Module-level registry
 _sessions: dict[str, Session] = {}
 
 

@@ -59,9 +59,6 @@ sleep 1
 xfce4-panel --sm-client-disable 2>/dev/null &
 sleep 3
 
-# Reap any zombie children left from failed plugin processes
-wait -n 2>/dev/null || true
-
 # Dark desktop background
 xfconf-query -c xfce4-desktop \
     -p /backdrop/screen0/monitorscreen/workspace0/color-style -s 0 2>/dev/null || true

@@ -144,8 +144,9 @@ def build_dashboard() -> gr.Blocks:
         refresh_btn = gr.Button("🔄 Refresh", variant="secondary")
         refresh_btn.click(fn=refresh, outputs=[agent_table, summary, session_table])
 
-        # Auto-refresh every 10 seconds
-        app.load(fn=refresh, outputs=[agent_table, summary, session_table], every=10)
+        # Auto-refresh every 10 seconds (Gradio 5.x uses gr.Timer)
+        timer = gr.Timer(10)
+        timer.tick(fn=refresh, outputs=[agent_table, summary, session_table])
 
     return app
 

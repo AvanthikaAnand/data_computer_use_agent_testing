@@ -17,18 +17,34 @@ Xvfb ${DISPLAY} -screen 0 ${WIDTH}x${HEIGHT}x${DEPTH} -ac +extension GLX +render
 until [ -S /tmp/.X11-unix/X${DISPLAY_NUM} ]; do sleep 0.2; done
 echo "[entrypoint] Xvfb ready"
 
-# Write panel config BEFORE starting desktop so xfconfd reads it on launch.
-# Also wipe any stale xfconf state persisted in the home volume.
-echo "[entrypoint] Applying desktop panel config"
-PANEL_CFG_DIR="$HOME/.config/xfce4/xfconf/xfce-perchannel-xml"
-LAUNCHER_DIR="$HOME/.config/xfce4/panel"
+# ── Desktop config ────────────────────────────────────────────────────────────
+# Wipe ALL stale xfce4 state first so xfconfd starts from our clean config,
+# not from Ubuntu defaults (which produce 2 panels).
+echo "[entrypoint] Writing clean desktop config"
+XFCE_CFG="$HOME/.config/xfce4"
+PANEL_CFG_DIR="$XFCE_CFG/xfconf/xfce-perchannel-xml"
+LAUNCHER_DIR="$XFCE_CFG/panel"
+
+rm -rf "$XFCE_CFG"
 mkdir -p "$PANEL_CFG_DIR" "$LAUNCHER_DIR"
 cp /home/agent/app/image/xfce4-panel.xml "$PANEL_CFG_DIR/xfce4-panel.xml"
+
+# Copy launcher desktop files into the panel launcher directories.
+# Each launcher-N dir must match the plugin-N IDs in xfce4-panel.xml.
 cp -r /home/agent/app/image/panel/. "$LAUNCHER_DIR/"
 
 echo "[entrypoint] Starting XFCE4"
 startxfce4 &
-sleep 3
+sleep 4
+
+# Force the panel to reload from our clean config. XFCE4 on Ubuntu 24.04 may
+# spawn a second default top panel on first run; quitting and restarting the
+# panel daemon fixes this.
+echo "[entrypoint] Reloading panel to enforce single-bottom config"
+xfce4-panel --quit 2>/dev/null || true
+sleep 1
+xfce4-panel &
+sleep 2
 
 echo "[entrypoint] Starting x11vnc on port ${VNC_PORT}"
 x11vnc \
@@ -54,6 +70,7 @@ websockify \
 
 echo "[entrypoint] Desktop ready at http://localhost:${NOVNC_PORT}"
 
+# Dark background colour
 xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitorscreen/workspace0/color-style -s 0 2>/dev/null || true
 xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitorscreen/workspace0/rgba1 -s "0.172549 0.243137 0.313725 1.000000" 2>/dev/null || true
 

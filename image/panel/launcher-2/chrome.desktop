@@ -1,7 +1,8 @@
 [Desktop Entry]
 Name=Google Chrome
 Comment=Browse the web
-Exec=google-chrome --no-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --no-first-run --no-default-browser-check %U
+Exec=google-chrome %U
 Icon=google-chrome
 Type=Application
 Categories=Network;WebBrowser;
+StartupNotify=true

@@ -5,7 +5,8 @@
   <property name="panels" type="array">
     <value type="int" value="1"/>
     <property name="panel-1" type="empty">
-      <property name="position" type="string" value="p=2;x=683;y=732"/>
+      <!-- p=8 = SouthGravity: panel anchored to bottom edge, centered -->
+      <property name="position" type="string" value="p=8;x=0;y=0"/>
       <property name="length" type="uint" value="100"/>
       <property name="position-locked" type="bool" value="true"/>
       <property name="size" type="uint" value="36"/>
@@ -24,20 +25,45 @@
   </property>
   <property name="plugins" type="empty">
     <property name="plugin-1" type="string" value="applicationsmenu"/>
-    <property name="plugin-2" type="string" value="launcher"/>
-    <property name="plugin-3" type="string" value="launcher"/>
-    <property name="plugin-4" type="string" value="launcher"/>
+
+    <!-- Chrome launcher -->
+    <property name="plugin-2" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="chrome.desktop"/>
+      </property>
+    </property>
+
+    <!-- Terminal launcher -->
+    <property name="plugin-3" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="terminal.desktop"/>
+      </property>
+    </property>
+
+    <!-- Files launcher -->
+    <property name="plugin-4" type="string" value="launcher">
+      <property name="items" type="array">
+        <value type="string" value="files.desktop"/>
+      </property>
+    </property>
+
+    <!-- Expanding spacer pushes tasklist/systray/clock to the right -->
     <property name="plugin-5" type="string" value="separator">
       <property name="expand" type="bool" value="true"/>
       <property name="style" type="uint" value="0"/>
     </property>
+
     <property name="plugin-6" type="string" value="tasklist">
       <property name="show-labels" type="bool" value="true"/>
       <property name="grouping" type="uint" value="1"/>
     </property>
+
     <property name="plugin-7" type="string" value="systray"/>
+
     <property name="plugin-8" type="string" value="clock">
       <property name="digital-format" type="string" value="%H:%M SGT"/>
+      <property name="digital-time-format" type="string" value="%H:%M SGT"/>
+      <property name="digital-layout" type="uint" value="3"/>
     </property>
   </property>
 </channel>

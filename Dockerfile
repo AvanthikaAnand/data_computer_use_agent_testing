@@ -83,6 +83,10 @@ RUN curl -fsSL https://packages.mozilla.org/apt/repo-signing-key.gpg \
     apt-get install -y --no-install-recommends firefox && \
     rm -rf /var/lib/apt/lists/*
 
+# ── Firefox wrapper (no-sandbox for Docker renderer stability) ────────────────
+COPY image/firefox-wrapper.sh /usr/local/bin/firefox
+RUN chmod +x /usr/local/bin/firefox
+
 # ── Chrome wrapper (ensures Docker-safe flags for all launch paths) ───────────
 COPY image/chrome-wrapper.sh /usr/local/bin/google-chrome
 RUN chmod +x /usr/local/bin/google-chrome

@@ -18,8 +18,7 @@ until [ -S /tmp/.X11-unix/X${DISPLAY_NUM} ]; do sleep 0.2; done
 echo "[entrypoint] Xvfb ready"
 
 # ── Desktop config ────────────────────────────────────────────────────────────
-# Wipe ALL stale xfce4 state first so xfconfd starts from our clean config,
-# not from Ubuntu defaults (which produce 2 panels).
+# Wipe ALL stale xfce4 state so xfconfd reads our clean 1-panel config.
 echo "[entrypoint] Writing clean desktop config"
 XFCE_CFG="$HOME/.config/xfce4"
 PANEL_CFG_DIR="$XFCE_CFG/xfconf/xfce-perchannel-xml"
@@ -28,25 +27,47 @@ LAUNCHER_DIR="$XFCE_CFG/panel"
 rm -rf "$XFCE_CFG"
 mkdir -p "$PANEL_CFG_DIR" "$LAUNCHER_DIR"
 cp /home/agent/app/image/xfce4-panel.xml "$PANEL_CFG_DIR/xfce4-panel.xml"
-
-# Copy launcher desktop files into the panel launcher directories.
-# Each launcher-N dir must match the plugin-N IDs in xfce4-panel.xml.
 cp -r /home/agent/app/image/panel/. "$LAUNCHER_DIR/"
 
-# Pre-create Firefox profile so the first launch never shows "Profile Missing".
-# Firefox needs a writable profile dir before it initialises; without this it
-# can fail if .cache or .mozilla is not yet present.
+# Pre-create Firefox profile to avoid "Profile Missing" on first launch.
 mkdir -p "$HOME/.mozilla/firefox/default-release"
 mkdir -p "$HOME/.cache/mozilla/firefox"
 
-echo "[entrypoint] Starting XFCE4"
-# The system default panel config (/etc/xdg/xfce4/panel/default.xml) has been
-# overridden with our single-panel config at image build time, so xfce4-panel
-# will always start with exactly 1 bottom panel regardless of xfconf state.
-# We do NOT restart xfce4-panel after startup — doing so triggers xfce4-session
-# to auto-restart it simultaneously, producing a duplicate panel.
-startxfce4 &
-sleep 4
+# ── XFCE4 components — started manually (NOT via startxfce4 / xfce4-session)
+# Using startxfce4 launches xfce4-session, whose failsafe client list includes
+# its own xfce4-panel entry — producing a second panel on top of ours.
+# Starting each component directly with --sm-client-disable keeps us in full
+# control: exactly the processes we start, nothing more.
+echo "[entrypoint] Starting D-Bus session bus"
+eval "$(dbus-launch --sh-syntax)"
+export DBUS_SESSION_BUS_ADDRESS
+
+echo "[entrypoint] Starting XFCE4 components"
+xfsettingsd --sm-client-disable 2>/dev/null &
+sleep 1
+xfwm4 --sm-client-disable 2>/dev/null &
+sleep 1
+xfdesktop --sm-client-disable 2>/dev/null &
+sleep 1
+
+# Trigger xfconfd to load our panel XML now (before xfce4-panel asks for it),
+# so the panel never races against a cold xfconfd start.
+xfconf-query -c xfce4-panel -p /panels -v 2>/dev/null || true
+sleep 1
+
+# Panel — reads our pre-written xfconfd XML (1 panel, bottom, Firefox/Term/Files)
+xfce4-panel --sm-client-disable 2>/dev/null &
+sleep 3
+
+# Reap any zombie children left from failed plugin processes
+wait -n 2>/dev/null || true
+
+# Dark desktop background
+xfconf-query -c xfce4-desktop \
+    -p /backdrop/screen0/monitorscreen/workspace0/color-style -s 0 2>/dev/null || true
+xfconf-query -c xfce4-desktop \
+    -p /backdrop/screen0/monitorscreen/workspace0/rgba1 \
+    -s "0.172549 0.243137 0.313725 1.000000" 2>/dev/null || true
 
 echo "[entrypoint] Starting x11vnc on port ${VNC_PORT}"
 x11vnc \
@@ -71,10 +92,6 @@ websockify \
     localhost:${VNC_PORT} &
 
 echo "[entrypoint] Desktop ready at http://localhost:${NOVNC_PORT}"
-
-# Dark background colour
-xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitorscreen/workspace0/color-style -s 0 2>/dev/null || true
-xfconf-query -c xfce4-desktop -p /backdrop/screen0/monitorscreen/workspace0/rgba1 -s "0.172549 0.243137 0.313725 1.000000" 2>/dev/null || true
 
 cd /home/agent/app
 

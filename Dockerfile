@@ -70,8 +70,17 @@ RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
     apt-get update && apt-get install -y --no-install-recommends google-chrome-stable \
     && rm -rf /var/lib/apt/lists/*
 
-# ── Firefox ───────────────────────────────────────────────────────────────────
-RUN apt-get update && apt-get install -y --no-install-recommends firefox && \
+# ── Firefox (real .deb from Mozilla — Ubuntu 24.04 ships only a snap stub) ───
+RUN curl -fsSL https://packages.mozilla.org/apt/repo-signing-key.gpg \
+        | gpg --dearmor -o /etc/apt/keyrings/packages.mozilla.org.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.gpg] \
+        https://packages.mozilla.org/apt mozilla main" \
+        > /etc/apt/sources.list.d/mozilla.list && \
+    # Prefer Mozilla repo over Ubuntu's snap transitional stub
+    printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1001\n' \
+        > /etc/apt/preferences.d/mozilla && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends firefox && \
     rm -rf /var/lib/apt/lists/*
 
 # ── Chrome wrapper (ensures Docker-safe flags for all launch paths) ───────────

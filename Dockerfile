@@ -127,7 +127,11 @@ COPY image/entrypoint.sh /entrypoint.sh
 # Override the system default panel config (2-panel) with our single-bottom-panel
 # config so xfce4-panel NEVER falls back to the Ubuntu default.
 COPY image/xfce4-panel.xml /etc/xdg/xfce4/panel/default.xml
-RUN chmod +x /entrypoint.sh && chown -R agent:agent /home/agent/app
+RUN chmod +x /entrypoint.sh && \
+    # Fix ownership of entire home dir — build steps running as root can create
+    # root-owned subdirs (e.g. .cache from pip, font cache) which break Firefox
+    # profile creation and other per-user apps.
+    chown -R agent:agent /home/agent
 
 USER agent
 

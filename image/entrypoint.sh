@@ -33,6 +33,12 @@ cp /home/agent/app/image/xfce4-panel.xml "$PANEL_CFG_DIR/xfce4-panel.xml"
 # Each launcher-N dir must match the plugin-N IDs in xfce4-panel.xml.
 cp -r /home/agent/app/image/panel/. "$LAUNCHER_DIR/"
 
+# Pre-create Firefox profile so the first launch never shows "Profile Missing".
+# Firefox needs a writable profile dir before it initialises; without this it
+# can fail if .cache or .mozilla is not yet present.
+mkdir -p "$HOME/.mozilla/firefox/default-release"
+mkdir -p "$HOME/.cache/mozilla/firefox"
+
 echo "[entrypoint] Starting XFCE4"
 # The system default panel config (/etc/xdg/xfce4/panel/default.xml) has been
 # overridden with our single-panel config at image build time, so xfce4-panel

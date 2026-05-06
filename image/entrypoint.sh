@@ -34,17 +34,13 @@ cp /home/agent/app/image/xfce4-panel.xml "$PANEL_CFG_DIR/xfce4-panel.xml"
 cp -r /home/agent/app/image/panel/. "$LAUNCHER_DIR/"
 
 echo "[entrypoint] Starting XFCE4"
+# The system default panel config (/etc/xdg/xfce4/panel/default.xml) has been
+# overridden with our single-panel config at image build time, so xfce4-panel
+# will always start with exactly 1 bottom panel regardless of xfconf state.
+# We do NOT restart xfce4-panel after startup — doing so triggers xfce4-session
+# to auto-restart it simultaneously, producing a duplicate panel.
 startxfce4 &
 sleep 4
-
-# Force the panel to reload from our clean config. XFCE4 on Ubuntu 24.04 may
-# spawn a second default top panel on first run; quitting and restarting the
-# panel daemon fixes this.
-echo "[entrypoint] Reloading panel to enforce single-bottom config"
-xfce4-panel --quit 2>/dev/null || true
-sleep 1
-xfce4-panel &
-sleep 2
 
 echo "[entrypoint] Starting x11vnc on port ${VNC_PORT}"
 x11vnc \

@@ -1,8 +1,8 @@
 [Desktop Entry]
-Name=Google Chrome
+Name=Firefox
 Comment=Browse the web
-Exec=google-chrome %U
-Icon=google-chrome
+Exec=firefox %U
+Icon=firefox
 Type=Application
 Categories=Network;WebBrowser;
 StartupNotify=true

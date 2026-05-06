@@ -26,10 +26,10 @@
   <property name="plugins" type="empty">
     <property name="plugin-1" type="string" value="applicationsmenu"/>
 
-    <!-- Chrome launcher -->
+    <!-- Firefox launcher -->
     <property name="plugin-2" type="string" value="launcher">
       <property name="items" type="array">
-        <value type="string" value="chrome.desktop"/>
+        <value type="string" value="firefox.desktop"/>
       </property>
     </property>
 

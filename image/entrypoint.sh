@@ -17,18 +17,18 @@ Xvfb ${DISPLAY} -screen 0 ${WIDTH}x${HEIGHT}x${DEPTH} -ac +extension GLX +render
 until [ -S /tmp/.X11-unix/X${DISPLAY_NUM} ]; do sleep 0.2; done
 echo "[entrypoint] Xvfb ready"
 
-echo "[entrypoint] Starting XFCE4"
-startxfce4 &
-sleep 3
-
-# Apply panel config on every start — overrides any state persisted in home volume
+# Write panel config BEFORE starting desktop so xfconfd reads it on launch.
+# Also wipe any stale xfconf state persisted in the home volume.
+echo "[entrypoint] Applying desktop panel config"
 PANEL_CFG_DIR="$HOME/.config/xfce4/xfconf/xfce-perchannel-xml"
 LAUNCHER_DIR="$HOME/.config/xfce4/panel"
 mkdir -p "$PANEL_CFG_DIR" "$LAUNCHER_DIR"
 cp /home/agent/app/image/xfce4-panel.xml "$PANEL_CFG_DIR/xfce4-panel.xml"
 cp -r /home/agent/app/image/panel/. "$LAUNCHER_DIR/"
-xfce4-panel --restart 2>/dev/null || true
-sleep 1
+
+echo "[entrypoint] Starting XFCE4"
+startxfce4 &
+sleep 3
 
 echo "[entrypoint] Starting x11vnc on port ${VNC_PORT}"
 x11vnc \

@@ -29,9 +29,42 @@ mkdir -p "$PANEL_CFG_DIR" "$LAUNCHER_DIR"
 cp /home/agent/app/image/xfce4-panel.xml "$PANEL_CFG_DIR/xfce4-panel.xml"
 cp -r /home/agent/app/image/panel/. "$LAUNCHER_DIR/"
 
-# Pre-create Firefox profile to avoid "Profile Missing" on first launch.
-mkdir -p "$HOME/.mozilla/firefox/default-release"
+# ── Firefox profile ───────────────────────────────────────────────────────────
+# Pre-create a named profile and write user.js to disable GPU/hardware
+# acceleration — these features crash in Xvfb (no real GPU).
+# MOZ_DISABLE_RenderCompositorSWGL=1 (set in Dockerfile ENV) handles the
+# renderer process; user.js handles the compositor and WebGL layers.
+FIREFOX_PROFILE="$HOME/.mozilla/firefox/default-release"
+mkdir -p "$FIREFOX_PROFILE"
 mkdir -p "$HOME/.cache/mozilla/firefox"
+
+cat > "$FIREFOX_PROFILE/user.js" << 'USERJS'
+// Disable hardware acceleration — prevents RenderCompositorSWGL crash in Xvfb
+user_pref("layers.acceleration.disabled", true);
+user_pref("gfx.webrender.enabled", false);
+user_pref("gfx.webrender.all", false);
+user_pref("webgl.disabled", true);
+// Suppress first-run UI
+user_pref("browser.shell.checkDefaultBrowser", false);
+user_pref("browser.startup.firstrunSkipsHomepage", true);
+user_pref("browser.startup.homepage", "about:blank");
+// Disable session restore prompt
+user_pref("browser.sessionstore.resume_from_crash", false);
+USERJS
+
+# Write profiles.ini so Firefox picks up our profile automatically
+mkdir -p "$HOME/.mozilla/firefox"
+cat > "$HOME/.mozilla/firefox/profiles.ini" << 'PROFILES'
+[General]
+StartWithLastProfile=1
+Version=2
+
+[Profile0]
+Name=default-release
+IsRelative=1
+Path=default-release
+Default=1
+PROFILES
 
 # ── XFCE4 components — started manually (NOT via startxfce4 / xfce4-session)
 # Using startxfce4 launches xfce4-session, whose failsafe client list includes
@@ -43,21 +76,38 @@ eval "$(dbus-launch --sh-syntax)"
 export DBUS_SESSION_BUS_ADDRESS
 
 echo "[entrypoint] Starting XFCE4 components"
+
+# Warm up xfconfd with our XML before any panel process starts.
+# This prevents xfce4-panel from racing against a cold xfconfd.
+xfconf-query -c xfce4-panel -p /panels -v 2>/dev/null || true
+
 xfsettingsd --sm-client-disable 2>/dev/null &
 sleep 1
 xfwm4 --sm-client-disable 2>/dev/null &
 sleep 1
+
+# xfdesktop manages the desktop icons/wallpaper.
+# --sm-client-disable prevents it registering with any session manager.
 xfdesktop --sm-client-disable 2>/dev/null &
 sleep 1
 
-# Trigger xfconfd to load our panel XML now (before xfce4-panel asks for it),
-# so the panel never races against a cold xfconfd start.
-xfconf-query -c xfce4-panel -p /panels -v 2>/dev/null || true
-sleep 1
-
 # Panel — reads our pre-written xfconfd XML (1 panel, bottom, Firefox/Term/Files)
+# Started LAST so all other components are settled and xfconfd is fully loaded.
 xfce4-panel --sm-client-disable 2>/dev/null &
 sleep 3
+
+# Explicitly remove any stale second panel that xfdesktop or another component
+# may have triggered during startup, then do nothing more — any restart from
+# here would cause the duplicate we're fighting.
+_panel_count=$(xfconf-query -c xfce4-panel -p /panels 2>/dev/null | grep -c '[0-9]')
+if [ "${_panel_count:-0}" -gt 1 ]; then
+    echo "[entrypoint] WARNING: xfconfd shows >1 panel — resetting to panel-1 only"
+    xfconf-query -c xfce4-panel -p /panels -t int -s 1 --force-array 2>/dev/null || true
+    pkill -x xfce4-panel 2>/dev/null || true
+    sleep 1
+    xfce4-panel --sm-client-disable 2>/dev/null &
+    sleep 2
+fi
 
 # Dark desktop background
 xfconf-query -c xfce4-desktop \

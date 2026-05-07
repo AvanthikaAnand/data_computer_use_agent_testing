@@ -8,14 +8,16 @@ ENV DEBIAN_FRONTEND=noninteractive \
     TZ=Asia/Singapore \
     DISPLAY=:1 \
     DISPLAY_NUM=1 \
-    WIDTH=1366 \
-    HEIGHT=768 \
+    WIDTH=1920 \
+    HEIGHT=1080 \
     DEPTH=24 \
     VNC_PORT=5901 \
     NOVNC_PORT=6080 \
     HOME=/home/agent \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
+    # Disable Firefox's software WebGL renderer — crashes inside Xvfb (no GPU)
+    MOZ_DISABLE_RenderCompositorSWGL=1 \
     # Chrome flags for stable rendering inside Docker
     CHROME_FLAGS="--no-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --no-first-run --no-default-browser-check"
 

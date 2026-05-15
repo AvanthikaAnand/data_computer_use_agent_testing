@@ -1,0 +1,16 @@
+[Unit]
+Description=VPN Keepalive Monitor
+After=network.target openvpn3-sessionmgr.service
+ConditionEnvironment=VPN_KEEPALIVE_URL
+
+[Service]
+Type=simple
+User=agent
+Environment=HOME=/home/agent
+EnvironmentFile=-/etc/agent.env
+ExecStart=/bin/bash /home/agent/app/image/maintain_vpn_connection.sh
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

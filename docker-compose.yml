@@ -2,9 +2,7 @@
 x-agent: &agent-base
   build:
     context: .
-    platforms: [linux/amd64]
   image: cu-agent:latest
-  platform: linux/amd64
   depends_on:
     litellm:
       condition: service_started
@@ -18,15 +16,28 @@ x-agent: &agent-base
     - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
     - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
     - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-    - WIDTH=${WIDTH:-1920}
-    - HEIGHT=${HEIGHT:-1080}
+    # WIDTH and HEIGHT come from agent.env (1920x1080) — do NOT use ${WIDTH:-} here
+    # because the host shell's $WIDTH may be set to 1366 and would override agent.env.
+    - WIDTH=1920
+    - HEIGHT=1080
     - VPN_KEEPALIVE_URL=${VPN_KEEPALIVE_URL:-}
     - VPN_CHECK_INTERVAL=${VPN_CHECK_INTERVAL:-300}
+    - VPN_CONFIG_PATH=${VPN_CONFIG_PATH:-}
   volumes:
     - ./config.yaml:/home/agent/app/config.yaml:ro
+    - ./vpn:/vpn:ro          # place your .ovpn file here; set VPN_CONFIG_PATH=/vpn/your.ovpn
+    # Persist Firefox profile across restarts — preserves Google session cookies
+    # so the agent doesn't look like a new device on every container start.
+    # Log in to Gmail once via noVNC; subsequent starts reuse the saved session.
+    - firefox-profile:/home/agent/.mozilla/firefox/default-release
+    # systemd needs read-write access to cgroups, and a fresh /run tmpfs
+    - /sys/fs/cgroup:/sys/fs/cgroup:rw
+  tmpfs:
+    - /run
+    - /run/lock
   restart: unless-stopped
-  cap_add: [SYS_ADMIN]
-  security_opt: [seccomp:unconfined]
+  privileged: true            # required for systemd cgroup management + TUN device
+  stop_signal: SIGRTMIN+3     # systemd's clean shutdown signal
   labels:
     - "traefik.enable=true"
     - "traefik.http.routers.agent-api.rule=PathPrefix(`/`)"
@@ -108,13 +119,15 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
       - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - WIDTH=${WIDTH:-1920}
-      - HEIGHT=${HEIGHT:-1080}
+      - WIDTH=1920
+      - HEIGHT=1080
       - VPN_KEEPALIVE_URL=${VPN_KEEPALIVE_URL:-}
       - VPN_CHECK_INTERVAL=${VPN_CHECK_INTERVAL:-300}
     ports:
       - "6081:6080"
       - "7861:7860"
+      - "8801:8080"
+      - "5911:5901"
 
   cu-agent-2:
     <<: *agent-base
@@ -126,13 +139,15 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
       - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - WIDTH=${WIDTH:-1920}
-      - HEIGHT=${HEIGHT:-1080}
+      - WIDTH=1920
+      - HEIGHT=1080
       - VPN_KEEPALIVE_URL=${VPN_KEEPALIVE_URL:-}
       - VPN_CHECK_INTERVAL=${VPN_CHECK_INTERVAL:-300}
     ports:
       - "6082:6080"
       - "7862:7860"
+      - "8802:8080"
+      - "5912:5901"
 
   cu-agent-3:
     <<: *agent-base
@@ -144,13 +159,15 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
       - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - WIDTH=${WIDTH:-1920}
-      - HEIGHT=${HEIGHT:-1080}
+      - WIDTH=1920
+      - HEIGHT=1080
       - VPN_KEEPALIVE_URL=${VPN_KEEPALIVE_URL:-}
       - VPN_CHECK_INTERVAL=${VPN_CHECK_INTERVAL:-300}
     ports:
       - "6083:6080"
       - "7863:7860"
+      - "8803:8080"
+      - "5913:5901"
 
   cu-agent-4:
     <<: *agent-base
@@ -162,13 +179,15 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
       - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - WIDTH=${WIDTH:-1920}
-      - HEIGHT=${HEIGHT:-1080}
+      - WIDTH=1920
+      - HEIGHT=1080
       - VPN_KEEPALIVE_URL=${VPN_KEEPALIVE_URL:-}
       - VPN_CHECK_INTERVAL=${VPN_CHECK_INTERVAL:-300}
     ports:
       - "6084:6080"
       - "7864:7860"
+      - "8804:8080"
+      - "5914:5901"
 
   cu-agent-5:
     <<: *agent-base
@@ -180,22 +199,22 @@ services:
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}
       - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - WIDTH=${WIDTH:-1920}
-      - HEIGHT=${HEIGHT:-1080}
+      - WIDTH=1920
+      - HEIGHT=1080
       - VPN_KEEPALIVE_URL=${VPN_KEEPALIVE_URL:-}
       - VPN_CHECK_INTERVAL=${VPN_CHECK_INTERVAL:-300}
     ports:
       - "6085:6080"
       - "7865:7860"
+      - "8805:8080"
+      - "5915:5901"
 
   # ── Multi-agent monitoring dashboard ─────────────────────────────────────
   dashboard:
     build:
       context: .
       dockerfile: Dockerfile.dashboard
-      platforms: [linux/amd64]
     container_name: cu-dashboard
-    platform: linux/amd64
     ports:
       - "8503:8503"   # → http://localhost:8503
     environment:
@@ -210,3 +229,4 @@ services:
 
 volumes:
   postgres-data:
+  firefox-profile:   # persists Firefox session cookies across container restarts

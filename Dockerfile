@@ -1,8 +1,9 @@
-# Computer Use Agent — Ubuntu 24.04 + XFCE4 + Chrome
-# Pinned to linux/amd64: Chrome only ships amd64 packages.
-# On Apple Silicon, Docker Desktop uses Rosetta 2 for emulation automatically.
+# Computer Use Agent — Ubuntu 24.04 + Firefox + systemd
+# systemd runs as PID 1, giving openvpn3 its native D-Bus environment.
+# Native multi-arch (arm64 + amd64): Chrome removed so Apple Silicon runs
+# natively without Rosetta 2.
 
-FROM --platform=linux/amd64 ubuntu:24.04
+FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive \
     TZ=Asia/Singapore \
@@ -16,104 +17,258 @@ ENV DEBIAN_FRONTEND=noninteractive \
     HOME=/home/agent \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    # Disable Firefox's software WebGL renderer — crashes inside Xvfb (no GPU)
-    MOZ_DISABLE_RenderCompositorSWGL=1 \
-    # Chrome flags for stable rendering inside Docker
-    CHROME_FLAGS="--no-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer --no-first-run --no-default-browser-check"
+    MOZ_DISABLE_RenderCompositorSWGL=1
 
 # ── System packages ───────────────────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Core desktop
-    xfce4 \
+    mutter \
+    tint2 \
     xfce4-terminal \
     xfce4-taskmanager \
     thunar \
     thunar-archive-plugin \
-    # Display server
     xvfb \
     x11vnc \
-    # Fast web-based VNC
     websockify \
-    # Screenshot + input control
     scrot \
     xdotool \
     x11-utils \
-    # Fonts & icons
     fonts-liberation \
     fonts-noto-color-emoji \
     adwaita-icon-theme \
-    # Utilities
     curl \
     wget \
     git \
     unzip \
     ca-certificates \
     gnupg \
+    iproute2 \
     python3 \
     python3-pip \
     python3-venv \
     libgl1 \
     libglib2.0-0 \
+    dbus \
     dbus-x11 \
     at-spi2-core \
     tzdata \
     apt-transport-https \
+    sudo \
+    # systemd as PID 1 — enables openvpn3 D-Bus service activation
+    systemd \
+    systemd-sysv \
     && rm -rf /var/lib/apt/lists/* \
-    # Set timezone
     && ln -sf /usr/share/zoneinfo/Asia/Singapore /etc/localtime \
-    && echo "Asia/Singapore" > /etc/timezone
+    && echo "Asia/Singapore" > /etc/timezone \
+    # Mask systemd units incompatible with containers
+    && systemctl mask \
+        dev-hugepages.mount \
+        sys-fs-fuse-connections.mount \
+        sys-kernel-config.mount \
+        display-manager.service \
+        getty@.service \
+        getty.target \
+        console-getty.service \
+        systemd-logind.service \
+        systemd-remount-fs.service \
+        systemd-udev-trigger.service \
+        systemd-udevd.service \
+        systemd-update-utmp.service \
+        systemd-networkd.service \
+        NetworkManager.service \
+    && rm -f \
+        /lib/systemd/system/multi-user.target.wants/systemd-resolved.service \
+        /lib/systemd/system/sysinit.target.wants/systemd-resolved.service \
+    || true
 
-# ── Google Chrome ─────────────────────────────────────────────────────────────
-RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
-        | gpg --dearmor -o /etc/apt/keyrings/google-chrome.gpg && \
-    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/google-chrome.gpg] \
-        https://dl.google.com/linux/chrome/deb/ stable main" \
-        > /etc/apt/sources.list.d/google-chrome.list && \
-    apt-get update && apt-get install -y --no-install-recommends google-chrome-stable \
-    && rm -rf /var/lib/apt/lists/*
+# ── OpenVPN ───────────────────────────────────────────────────────────────────
+# openvpn3 has no ARM64 packages for Ubuntu Noble from any repo (confirmed:
+# packages.openvpn.net has no Ubuntu path, Ubuntu universe has no arm64 build).
+# openvpn (v2) works with the embedded-cert .ovpn profile and is in Ubuntu main.
+# Connect from VNC terminal: sudo openvpn --config /vpn/your.ovpn --daemon
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends openvpn && \
+    rm -rf /var/lib/apt/lists/*
 
-# ── Firefox (real .deb from Mozilla — Ubuntu 24.04 ships only a snap stub) ───
+# ── Firefox ESR ───────────────────────────────────────────────────────────────
 RUN curl -fsSL https://packages.mozilla.org/apt/repo-signing-key.gpg \
         | gpg --dearmor -o /etc/apt/keyrings/packages.mozilla.org.gpg && \
     echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.gpg] \
         https://packages.mozilla.org/apt mozilla main" \
         > /etc/apt/sources.list.d/mozilla.list && \
-    # Prefer Mozilla repo over Ubuntu's snap transitional stub
     printf 'Package: *\nPin: origin packages.mozilla.org\nPin-Priority: 1001\n' \
         > /etc/apt/preferences.d/mozilla && \
     apt-get update && \
-    apt-get install -y --no-install-recommends firefox && \
+    apt-get install -y --no-install-recommends firefox-esr && \
     rm -rf /var/lib/apt/lists/*
 
-# ── Firefox wrapper (no-sandbox for Docker renderer stability) ────────────────
-COPY image/firefox-wrapper.sh /usr/local/bin/firefox
-RUN chmod +x /usr/local/bin/firefox
+# ── mozilla.cfg — Firefox prefs outside the profile ──────────────────────────
+# These apply to every profile (including volume-mounted ones) on every launch.
+# Fixes: cookie isolation, tracking protection, geolocation, fingerprinting,
+# language header, disk cache, WebRTC, notification permission.
+COPY image/autoconfig.js /usr/lib/firefox-esr/defaults/pref/autoconfig.js
+COPY image/mozilla.cfg   /usr/lib/firefox-esr/mozilla.cfg
 
-# ── Chrome wrapper (ensures Docker-safe flags for all launch paths) ───────────
-COPY image/chrome-wrapper.sh /usr/local/bin/google-chrome
-RUN chmod +x /usr/local/bin/google-chrome
+# ── Firefox wrapper ───────────────────────────────────────────────────────────
+COPY image/firefox-wrapper.sh /usr/local/bin/firefox-esr
+RUN chmod +x /usr/local/bin/firefox-esr && \
+    ln -sf /usr/local/bin/firefox-esr /usr/local/bin/firefox
 
-# ── OpenVPN3 ─────────────────────────────────────────────────────────────────
-RUN curl -fsSL https://packages.openvpn.net/packages-repo.gpg \
-        | gpg --dearmor -o /etc/apt/keyrings/openvpn.gpg && \
-    echo "deb [signed-by=/etc/apt/keyrings/openvpn.gpg] \
-        https://packages.openvpn.net/openvpn3/debian noble main" \
-        > /etc/apt/sources.list.d/openvpn3.list && \
-    apt-get update && apt-get install -y --no-install-recommends openvpn3 \
-    && rm -rf /var/lib/apt/lists/*
+# ── uBlock Origin — force-installed via Firefox enterprise policy ─────────────
+RUN mkdir -p /usr/lib/firefox-esr/distribution/extensions && \
+    curl -fsSL --retry 3 \
+        "https://addons.mozilla.org/firefox/downloads/file/4721638/ublock_origin-1.70.0.xpi" \
+        -o "/usr/lib/firefox-esr/distribution/extensions/uBlock0@raymondhill.net.xpi"
+COPY image/firefox-policies.json /usr/lib/firefox-esr/distribution/policies.json
 
-# ── noVNC (web client) ────────────────────────────────────────────────────────
+# ── noVNC ─────────────────────────────────────────────────────────────────────
 RUN mkdir -p /opt/novnc && \
-    curl -fsSL https://github.com/novnc/noVNC/archive/refs/tags/v1.5.0.tar.gz \
-        | tar -xz -C /opt/novnc --strip-components=1 && \
-    ln -s /opt/novnc/vnc.html /opt/novnc/index.html
+    curl -fsSL --retry 5 --retry-delay 5 \
+        -o /tmp/novnc.tar.gz \
+        https://github.com/novnc/noVNC/archive/refs/tags/v1.5.0.tar.gz && \
+    tar -xz -C /opt/novnc --strip-components=1 -f /tmp/novnc.tar.gz && \
+    rm /tmp/novnc.tar.gz && \
+    printf '<!DOCTYPE html>\n<html>\n<head><meta charset="utf-8"><title>Agent Desktop</title>\n<script>window.location="vnc.html?autoconnect=true&resize=scale&reconnect=true&reconnect_delay=2000";</script>\n</head><body>Loading...</body></html>\n' \
+        > /opt/novnc/index.html
+
+# ── FileBrowser — arch-aware ──────────────────────────────────────────────────
+RUN FB_ARCH=$(dpkg --print-architecture) && \
+    curl -fsSL "https://github.com/filebrowser/filebrowser/releases/latest/download/linux-${FB_ARCH}-filebrowser.tar.gz" \
+        | tar -xz -C /usr/local/bin filebrowser && \
+    chmod +x /usr/local/bin/filebrowser
 
 # ── Non-root user ─────────────────────────────────────────────────────────────
 RUN useradd -m -s /bin/bash agent && \
     echo "agent ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers && \
-    # X11 + ICE socket dirs must exist with sticky bit before Xvfb runs as non-root
     mkdir -p /tmp/.X11-unix /tmp/.ICE-unix && \
     chmod 1777 /tmp/.X11-unix /tmp/.ICE-unix
+
+# ── Firefox profile template ──────────────────────────────────────────────────
+# Stored OUTSIDE the profile directory so it isn't shadowed by the Docker
+# volume mount. firefox-profile-init.service copies these to the volume on
+# first run only — subsequent starts skip this, preserving session cookies.
+# Each heredoc needs its own RUN — the Dockerfile parser rejects heredocs
+# inside backslash-continued multi-statement RUN blocks.
+RUN mkdir -p /etc/agent/firefox-profile-template /home/agent/.mozilla/firefox
+
+RUN cat > /etc/agent/firefox-profile-template/profiles.ini << 'EOF'
+[General]
+StartWithLastProfile=1
+Version=2
+
+[Profile0]
+Name=default-release
+IsRelative=1
+Path=default-release
+Default=1
+EOF
+
+# user.js — only needed to trigger bookmark import on a fresh profile.
+# All other prefs live in mozilla.cfg (install-level, survives volume mount).
+RUN cat > /etc/agent/firefox-profile-template/user.js << 'EOF'
+user_pref("browser.places.importBookmarksHTML", true);
+EOF
+
+RUN cat > /etc/agent/firefox-profile-template/bookmarks.html << 'EOF'
+<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+<TITLE>Bookmarks</TITLE>
+<H1>Bookmarks Menu</H1>
+<DL><p>
+    <DT><H3 ADD_DATE="0" LAST_MODIFIED="0" PERSONAL_TOOLBAR_FOLDER="true">Bookmarks Toolbar</H3>
+    <DL><p>
+        <DT><A HREF="https://yp.internal.you.co/" ADD_DATE="0">YouPortal</A>
+        <DT><A HREF="https://portal.esimfx.com/auth/signin" ADD_DATE="0">eSIMfx Portal</A>
+        <DT><A HREF="https://mail.google.com/mail/u/0/" ADD_DATE="0">Gmail</A>
+        <DT><A HREF="https://login4.fisglobal.com/idp/PANorama" ADD_DATE="0">FIS panorama</A>
+    </DL><p>
+</DL><p>
+EOF
+
+RUN cp /etc/agent/firefox-profile-template/profiles.ini \
+       /home/agent/.mozilla/firefox/profiles.ini
+
+# ── Static tint2 + desktop launcher config ────────────────────────────────────
+RUN mkdir -p /home/agent/.config/tint2/applications
+
+RUN cat > /home/agent/.config/tint2/applications/filebrowser.desktop << 'EOF'
+[Desktop Entry]
+Name=File Browser
+Comment=Upload and download files
+Exec=/usr/bin/firefox-esr --no-sandbox --new-tab http://localhost:8080
+Icon=folder
+Type=Application
+Categories=Utility;
+EOF
+
+RUN cat > /home/agent/.config/tint2/tint2rc << 'EOF'
+#-------------------------------------
+# Panel
+panel_items = TL
+panel_size = 100% 48
+panel_margin = 0 0
+panel_padding = 2 0 2
+panel_background_id = 1
+panel_position = bottom center horizontal
+panel_layer = top
+panel_monitor = all
+panel_shrink = 0
+autohide = 0
+strut_policy = follow_size
+panel_window_name = tint2
+disable_transparency = 1
+mouse_effects = 1
+
+#-------------------------------------
+# Taskbar
+taskbar_mode = single_desktop
+taskbar_hide_if_empty = 0
+taskbar_padding = 0 0 2
+taskbar_background_id = 0
+taskbar_active_background_id = 0
+taskbar_name = 1
+taskbar_name_padding = 4 2
+taskbar_name_background_id = 0
+taskbar_name_active_background_id = 0
+taskbar_name_font_color = #e3e3e3 100
+taskbar_name_active_font_color = #ffffff 100
+task_align = left
+
+#-------------------------------------
+# Launcher
+launcher_padding = 4 8 4
+launcher_background_id = 0
+launcher_icon_size = 32
+launcher_tooltip = 1
+launcher_item_app = /usr/share/applications/firefox-esr.desktop
+launcher_item_app = /usr/share/applications/xfce4-terminal.desktop
+launcher_item_app = /home/agent/.config/tint2/applications/filebrowser.desktop
+
+#-------------------------------------
+# Background
+# ID 1
+rounded = 0
+border_width = 0
+background_color = #2c3e50 100
+border_color = #000000 30
+EOF
+
+# ── Systemd service units ─────────────────────────────────────────────────────
+COPY image/systemd/ /etc/systemd/system/
+RUN systemctl enable \
+    xvfb.service \
+    dbus-session.service \
+    mutter.service \
+    tint2.service \
+    x11vnc.service \
+    websockify.service \
+    firefox-profile-init.service \
+    firefox-prewarm.service \
+    filebrowser.service \
+    agent-api.service \
+    agent-ui.service \
+    vpn-keepalive.service \
+    && true
 
 WORKDIR /home/agent/app
 
@@ -128,19 +283,15 @@ ENV PATH="/opt/venv/bin:$PATH"
 # ── App source ────────────────────────────────────────────────────────────────
 COPY . .
 
-# ── Desktop environment config ────────────────────────────────────────────────
+# ── Ownership ─────────────────────────────────────────────────────────────────
+RUN chown -R agent:agent /home/agent && \
+    chmod +x /home/agent/app/image/firefox-profile-init.sh
+
+# ── Entrypoint: relay Docker env → /etc/agent.env, then hand to systemd ───────
 COPY image/entrypoint.sh /entrypoint.sh
-# Override the system default panel config (2-panel) with our single-bottom-panel
-# config so xfce4-panel NEVER falls back to the Ubuntu default.
-COPY image/xfce4-panel.xml /etc/xdg/xfce4/panel/default.xml
-RUN chmod +x /entrypoint.sh && \
-    # Fix ownership of entire home dir — build steps running as root can create
-    # root-owned subdirs (e.g. .cache from pip, font cache) which break Firefox
-    # profile creation and other per-user apps.
-    chown -R agent:agent /home/agent
+RUN chmod +x /entrypoint.sh
 
-USER agent
+EXPOSE 6080 5901 7860 8000 8080
 
-EXPOSE 6080 5901 7860 8000
-
+STOPSIGNAL SIGRTMIN+3
 ENTRYPOINT ["/entrypoint.sh"]

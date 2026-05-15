@@ -1,0 +1,14 @@
+[Unit]
+Description=Initialize Firefox Profile Volume (first run only)
+After=local-fs.target
+Before=firefox-prewarm.service
+
+[Service]
+Type=oneshot
+User=agent
+Environment=HOME=/home/agent
+ExecStart=/bin/bash /home/agent/app/image/firefox-profile-init.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=graphical.target

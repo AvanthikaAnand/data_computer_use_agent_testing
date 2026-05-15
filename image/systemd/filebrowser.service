@@ -1,0 +1,19 @@
+[Unit]
+Description=FileBrowser Web File Manager
+After=network.target
+
+[Service]
+Type=simple
+User=agent
+Environment=HOME=/home/agent
+ExecStart=/usr/local/bin/filebrowser \
+    --root /home/agent \
+    --address 0.0.0.0 \
+    --port 8080 \
+    --noauth \
+    --database /tmp/filebrowser.db
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

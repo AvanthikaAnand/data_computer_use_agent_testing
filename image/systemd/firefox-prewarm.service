@@ -1,0 +1,18 @@
+[Unit]
+Description=Pre-warm Firefox so it is ready immediately
+After=tint2.service firefox-profile-init.service
+Requires=dbus-session.service firefox-profile-init.service
+
+[Service]
+Type=oneshot
+User=agent
+Environment=DISPLAY=:1
+Environment=HOME=/home/agent
+EnvironmentFile=/run/agent/dbus.env
+# Launch in background so the oneshot completes immediately — Firefox keeps
+# running independently, pre-warming the JIT and profile for the agent's use.
+ExecStart=/bin/bash -c '/usr/local/bin/firefox-esr about:blank &'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=graphical.target

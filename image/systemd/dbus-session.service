@@ -1,0 +1,20 @@
+[Unit]
+Description=D-Bus Session Bus for Agent Desktop
+After=xvfb.service
+Requires=xvfb.service
+
+[Service]
+Type=oneshot
+User=agent
+Environment=HOME=/home/agent
+Environment=DISPLAY=:1
+# Launch session bus, eval the result, write address to a file in /run/agent
+# (pre-created by entrypoint.sh with agent ownership).
+ExecStart=/bin/bash -c '\
+    eval $(dbus-launch --sh-syntax) && \
+    echo "DBUS_SESSION_BUS_ADDRESS=${DBUS_SESSION_BUS_ADDRESS}" > /run/agent/dbus.env && \
+    echo "DBUS_SESSION_BUS_PID=${DBUS_SESSION_BUS_PID}" >> /run/agent/dbus.env'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=graphical.target

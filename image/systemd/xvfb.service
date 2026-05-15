@@ -1,0 +1,16 @@
+[Unit]
+Description=X Virtual Framebuffer
+After=systemd-tmpfiles-setup.service
+
+[Service]
+Type=simple
+User=agent
+EnvironmentFile=-/etc/agent.env
+ExecStart=/usr/bin/Xvfb :1 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset
+# Block until the X11 socket is ready so dependents don't race
+ExecStartPost=/bin/bash -c 'until [ -S /tmp/.X11-unix/X1 ]; do sleep 0.1; done'
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=graphical.target

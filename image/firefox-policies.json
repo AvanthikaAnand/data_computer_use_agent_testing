@@ -1,0 +1,29 @@
+{
+  "policies": {
+    "ExtensionSettings": {
+      "uBlock0@raymondhill.net": {
+        "installation_mode": "force_installed",
+        "install_url": "file:///usr/lib/firefox-esr/distribution/extensions/uBlock0@raymondhill.net.xpi"
+      }
+    },
+    "SearchEngines": {
+      "Remove": ["Google", "Google (default)"],
+      "Add": [
+        {
+          "Name": "Google",
+          "URLTemplate": "https://www.google.com/search?q={searchTerms}&udm=14",
+          "Method": "GET",
+          "IconURL": "https://www.google.com/favicon.ico",
+          "SuggestURLTemplate": "https://suggestqueries.google.com/complete/search?output=firefox&client=firefox&q={searchTerms}",
+          "Alias": "@g"
+        }
+      ],
+      "Default": "Google",
+      "PreventInstalls": false
+    },
+    "DisableFirefoxStudies": true,
+    "DisableTelemetry": true,
+    "DisableFormHistory": false,
+    "PromptForDownloadLocation": false
+  }
+}

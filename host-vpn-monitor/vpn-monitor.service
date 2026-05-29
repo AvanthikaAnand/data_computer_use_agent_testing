@@ -1,0 +1,16 @@
+[Unit]
+Description=Host-level VPN Monitor with Slack Alerts
+After=network-online.target openvpn3-sessionmgr.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=-/etc/vpn-monitor.env
+ExecStart=/usr/local/bin/vpn-monitor.sh
+Restart=on-failure
+RestartSec=15
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

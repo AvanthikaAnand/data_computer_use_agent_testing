@@ -11,3 +11,10 @@ build/
 /tmp/
 *.png
 *.log
+
+# VPN credentials — never commit
+*.ovpn
+vpn/*.ovpn
+.env
+agent.env
+*.pem

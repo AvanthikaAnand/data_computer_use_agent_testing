@@ -1,0 +1,86 @@
+name: Deploy VPN Monitor to EC2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "host-vpn-monitor/**"
+
+  # Allow manual trigger from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Build & deploy cu-vpn container
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Add EC2 host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Sync source files to EC2
+        run: |
+          scp host-vpn-monitor/Dockerfile \
+              host-vpn-monitor/vpn-entrypoint.sh \
+              ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/${{ secrets.EC2_USER }}/host-vpn-monitor/
+
+      - name: Build Docker image on EC2
+        run: |
+          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            "cd /home/${{ secrets.EC2_USER }}/host-vpn-monitor && docker build -t cu-vpn:latest . 2>&1"
+
+      - name: Redeploy cu-vpn container (only)
+        run: |
+          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'ENDSSH'
+            set -e
+
+            CONTAINER="cu-vpn"
+            VPN_DIR="/home/ec2-user/vpn"
+            IMAGE="cu-vpn:latest"
+
+            # Read Slack token from running container env, fall back to .env
+            SLACK_TOKEN=$(
+              docker inspect "$CONTAINER" \
+                --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null \
+              | grep '^SLACK_BOT_TOKEN=' | cut -d= -f2- || true
+            )
+            if [ -z "$SLACK_TOKEN" ]; then
+              SLACK_TOKEN=$(grep SLACK_BOT_TOKEN /home/ec2-user/.env 2>/dev/null \
+                | cut -d= -f2- | tr -d '"' || true)
+            fi
+
+            # Stop ONLY cu-vpn — never touch cu-agent-* containers
+            docker stop  "$CONTAINER" 2>/dev/null || true
+            docker rm    "$CONTAINER" 2>/dev/null || true
+
+            docker run -d \
+              --name "$CONTAINER" \
+              --net=host \
+              --privileged \
+              --restart=unless-stopped \
+              -v "$VPN_DIR":/vpn:ro \
+              -e SLACK_BOT_TOKEN="$SLACK_TOKEN" \
+              -e SLACK_VPN_CHANNEL="C0B7FUXGHU0" \
+              -e HOSTNAME_LABEL="cu-agent-ec2" \
+              -e VPN_CHECK_INTERVAL=60 \
+              "$IMAGE"
+
+            sleep 8
+            echo "=== Container logs ==="
+            docker logs "$CONTAINER" 2>&1 | head -30
+          ENDSSH
+
+      - name: Verify container is running
+        run: |
+          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            "docker ps --filter name=cu-vpn --format 'Status: {{.Status}}'"

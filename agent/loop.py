@@ -161,7 +161,18 @@ async def run_agent(
     }
 
     caps = cfg.capabilities
-    betas: list[str] = [caps.computer_use_tool_version]
+    # Convert tool version (e.g. "computer_use_20250124") to beta flag format
+    # (e.g. "computer-use-2025-01-24") as required by the Anthropic API.
+    _TOOL_VERSION_TO_BETA: dict[str, str] = {
+        "computer_use_20241022": "computer-use-2024-10-22",
+        "computer_use_20250124": "computer-use-2025-01-24",
+        "computer_use_20250429": "computer-use-2025-04-29",
+        "computer_20250124":     "computer-use-2025-01-24",
+    }
+    beta_flag = _TOOL_VERSION_TO_BETA.get(
+        caps.computer_use_tool_version, caps.computer_use_tool_version
+    )
+    betas: list[str] = [beta_flag]
     if caps.enable_prompt_caching:
         betas.append("prompt-caching-2024-07-31")
 

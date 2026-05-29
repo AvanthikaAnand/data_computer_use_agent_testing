@@ -3,37 +3,56 @@
 # Docs:      http://localhost:4000/docs
 
 model_list:
-  # ── Anthropic on Bedrock ──────────────────────────────────────────────────
+  # ── Computer-use capable model (HK/SG Bedrock account, ap-southeast-1) ────
+  # Uses global inference profile — confirmed working with computer_20250124.
+  # Credentials are hardcoded here (separate from the default AWS env vars).
+  - model_name: claude-computer-use
+    litellm_params:
+      model: bedrock/global.anthropic.claude-sonnet-4-5-20250929-v1:0
+      aws_access_key_id: os.environ/BEDROCK_HK_ACCESS_KEY_ID
+      aws_secret_access_key: os.environ/BEDROCK_HK_SECRET_ACCESS_KEY
+      aws_region_name: ap-southeast-1
+
+  # ── Anthropic on Bedrock (HK/SG account, ap-southeast-1) ─────────────────
+  # Using global. inference prefix — works from ap-southeast-1
   - model_name: claude-sonnet-4-5
     litellm_params:
-      model: bedrock/us.anthropic.claude-sonnet-4-5-20251001-v1:0
-      aws_region_name: os.environ/AWS_DEFAULT_REGION
+      model: bedrock/global.anthropic.claude-sonnet-4-5-20250929-v1:0
+      aws_access_key_id: os.environ/BEDROCK_HK_ACCESS_KEY_ID
+      aws_secret_access_key: os.environ/BEDROCK_HK_SECRET_ACCESS_KEY
+      aws_region_name: ap-southeast-1
 
   - model_name: claude-sonnet-3-7
     litellm_params:
-      model: bedrock/us.anthropic.claude-3-7-sonnet-20250219-v1:0
-      aws_region_name: os.environ/AWS_DEFAULT_REGION
+      model: bedrock/global.anthropic.claude-3-7-sonnet-20250219-v1:0
+      aws_access_key_id: os.environ/BEDROCK_HK_ACCESS_KEY_ID
+      aws_secret_access_key: os.environ/BEDROCK_HK_SECRET_ACCESS_KEY
+      aws_region_name: ap-southeast-1
 
   - model_name: claude-sonnet-3-5
     litellm_params:
-      model: bedrock/us.anthropic.claude-3-5-sonnet-20241022-v2:0
-      aws_region_name: os.environ/AWS_DEFAULT_REGION
+      model: bedrock/global.anthropic.claude-3-5-sonnet-20241022-v2:0
+      aws_access_key_id: os.environ/BEDROCK_HK_ACCESS_KEY_ID
+      aws_secret_access_key: os.environ/BEDROCK_HK_SECRET_ACCESS_KEY
+      aws_region_name: ap-southeast-1
 
   - model_name: claude-haiku-3-5
     litellm_params:
-      model: bedrock/us.anthropic.claude-haiku-3-5-20241022-v1:0
-      aws_region_name: os.environ/AWS_DEFAULT_REGION
+      model: bedrock/global.anthropic.claude-3-5-haiku-20241022-v1:0
+      aws_access_key_id: os.environ/BEDROCK_HK_ACCESS_KEY_ID
+      aws_secret_access_key: os.environ/BEDROCK_HK_SECRET_ACCESS_KEY
+      aws_region_name: ap-southeast-1
 
-  # ── Meta Llama on Bedrock ─────────────────────────────────────────────────
+  # ── Meta Llama on Bedrock (us-east-1 — no global prefix for Llama) ────────
   - model_name: llama-3-2-90b
     litellm_params:
       model: bedrock/us.meta.llama3-2-90b-instruct-v1:0
-      aws_region_name: os.environ/AWS_DEFAULT_REGION
+      aws_region_name: us-east-1
 
   - model_name: llama-3-3-70b
     litellm_params:
       model: bedrock/us.meta.llama3-3-70b-instruct-v1:0
-      aws_region_name: os.environ/AWS_DEFAULT_REGION
+      aws_region_name: us-east-1
 
   # ── Anthropic direct (fallback / non-AWS) ─────────────────────────────────
   - model_name: claude-direct-sonnet

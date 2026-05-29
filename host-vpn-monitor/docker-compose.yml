@@ -1,0 +1,23 @@
+services:
+  cu-vpn:
+    build: .
+    container_name: cu-vpn
+    # Share the host's network namespace so the tun interface created by
+    # openvpn3 appears on the host — all containers route through the VPN.
+    network_mode: host
+    # Required for TUN device creation and routing table changes
+    privileged: true
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    volumes:
+      - ./avanthika.ovpn:/vpn/avanthika.ovpn:ro
+    environment:
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}   # set in .env or shell env
+      - SLACK_VPN_CHANNEL=C0B7FUXGHU0
+      - VPN_CONFIG=/vpn/avanthika.ovpn
+      - VPN_KEEPALIVE_URL=http://yp.internal.you.co/
+      - VPN_CHECK_INTERVAL=60
+      - HOSTNAME_LABEL=cu-agent-ec2
+    restart: unless-stopped

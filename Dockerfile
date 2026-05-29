@@ -82,13 +82,30 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     || true
 
 # ── OpenVPN ───────────────────────────────────────────────────────────────────
-# openvpn3 has no ARM64 packages for Ubuntu Noble from any repo (confirmed:
-# packages.openvpn.net has no Ubuntu path, Ubuntu universe has no arm64 build).
-# openvpn (v2) works with the embedded-cert .ovpn profile and is in Ubuntu main.
-# Connect from VNC terminal: sudo openvpn --config /vpn/your.ovpn --daemon
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends openvpn && \
-    rm -rf /var/lib/apt/lists/*
+# openvpn3 is required for OpenVPN Cloud SAML auth — openvpn2 exits on AUTH_FAILED.
+# Ubuntu Noble has no ARM64 openvpn3 packages, but Debian Bookworm does.
+# Ubuntu 24.04 is Bookworm-era so the packages are ABI-compatible.
+# openvpn3-client depends on libtinyxml2-9 but Ubuntu Noble ships libtinyxml2-10.
+# Adding the Debian repo naively causes python3-systemd (Debian) to be selected,
+# which requires python3<3.12 — conflict with Noble's 3.12.
+# Fix: add Debian Bookworm at apt priority 100 (below Ubuntu's default 500) so
+# Ubuntu packages always win, and only packages absent from Ubuntu (libtinyxml2-9)
+# get pulled from Debian. Remove the Debian list after install to keep image clean.
+# Also keep openvpn (v2) for fallback / non-SAML use.
+RUN curl -fsSL https://packages.openvpn.net/packages-repo.gpg \
+        | gpg --dearmor -o /etc/apt/keyrings/openvpn.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/openvpn.gpg] \
+        https://packages.openvpn.net/openvpn3/debian bookworm main" \
+        > /etc/apt/sources.list.d/openvpn3.list && \
+    echo "deb [trusted=yes] http://deb.debian.org/debian bookworm main" \
+        > /etc/apt/sources.list.d/debian-bookworm.list && \
+    printf 'Package: *\nPin: origin deb.debian.org\nPin-Priority: 100\n' \
+        > /etc/apt/preferences.d/debian-bookworm && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends openvpn3 openvpn && \
+    rm -rf /var/lib/apt/lists/* && \
+    rm -f /etc/apt/sources.list.d/debian-bookworm.list \
+          /etc/apt/preferences.d/debian-bookworm
 
 # ── Firefox ESR ───────────────────────────────────────────────────────────────
 RUN curl -fsSL https://packages.mozilla.org/apt/repo-signing-key.gpg \
@@ -285,7 +302,8 @@ COPY . .
 
 # ── Ownership ─────────────────────────────────────────────────────────────────
 RUN chown -R agent:agent /home/agent && \
-    chmod +x /home/agent/app/image/firefox-profile-init.sh
+    chmod +x /home/agent/app/image/firefox-profile-init.sh \
+    && chmod +x /home/agent/app/image/maintain_vpn_connection.sh
 
 # ── Entrypoint: relay Docker env → /etc/agent.env, then hand to systemd ───────
 COPY image/entrypoint.sh /entrypoint.sh

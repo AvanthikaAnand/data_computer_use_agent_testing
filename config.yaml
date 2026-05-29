@@ -10,16 +10,19 @@ agent:
 
 # --- LLM Provider ---
 # Options: bedrock | anthropic | ollama | litellm
-provider: bedrock
+provider: anthropic
 
 # --- Model Selection ---
 # Bedrock model IDs (cross-region inference prefix "us." for lower latency)
 models:
   # Anthropic on Bedrock
-  claude-sonnet-4-5:   "us.anthropic.claude-sonnet-4-5-20251001-v1:0"
+  claude-sonnet-4-5:   "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+  claude-sonnet-4:     "apac.anthropic.claude-sonnet-4-20250514-v1:0"
+  claude-computer-use:      "claude-computer-use"   # routed via LiteLLM
+  claude-sonnet-4-5-global: "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
   claude-sonnet-3-7:   "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
   claude-sonnet-3-5:   "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
-  claude-haiku-3-5:    "us.anthropic.claude-haiku-3-5-20241022-v1:0"
+  claude-haiku-3-5:    "us.anthropic.claude-3-5-haiku-20241022-v1:0"
   # Meta Llama on Bedrock
   llama-3-2-90b:       "us.meta.llama3-2-90b-instruct-v1:0"
   llama-3-3-70b:       "us.meta.llama3-3-70b-instruct-v1:0"
@@ -33,7 +36,7 @@ models:
   ollama-qwen2-5vl:       "ollama/qwen2.5vl"
 
 # Active model (key from models map above, or a raw model ID string)
-active_model: claude-sonnet-3-7
+active_model: claude-computer-use
 
 # --- Provider-specific settings ---
 bedrock:
@@ -42,8 +45,10 @@ bedrock:
   # or IAM role (recommended on EC2/ECS)
 
 anthropic:
-  # Credentials via env: ANTHROPIC_API_KEY
-  base_url: null   # set for custom proxy
+  # LiteLLM exposes a native /v1/messages endpoint (Anthropic format) that
+  # routes to the model list — use this instead of /anthropic (pass-through)
+  # so traffic goes cu-agent → LiteLLM → Bedrock, not directly to Anthropic.
+  base_url: "http://litellm:4000"
 
 ollama:
   base_url: "http://localhost:11434"
@@ -55,7 +60,7 @@ litellm:
 # --- Model Capabilities ---
 # Override per model if needed
 model_capabilities:
-  computer_use_tool_version: "computer_use_20250124"   # or computer_use_20241022
+  computer_use_tool_version: "computer_20250124"   # or computer_use_20241022
   max_output_tokens: 16000
   supports_thinking: true
   thinking_budget: 8000          # tokens budget for extended thinking (0 = disabled)

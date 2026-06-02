@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # Computer Use Agent — Ubuntu 24.04 + Firefox + systemd
 # systemd runs as PID 1, giving openvpn3 its native D-Bus environment.
 # Native multi-arch (arm64 + amd64): Chrome removed so Apple Silicon runs

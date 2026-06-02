@@ -22,23 +22,22 @@ model_list:
       aws_secret_access_key: os.environ/BEDROCK_HK_SECRET_ACCESS_KEY
       aws_region_name: ap-southeast-1
 
-  - model_name: claude-sonnet-3-7
-    litellm_params:
-      model: bedrock/global.anthropic.claude-3-7-sonnet-20250219-v1:0
-      aws_access_key_id: os.environ/BEDROCK_HK_ACCESS_KEY_ID
-      aws_secret_access_key: os.environ/BEDROCK_HK_SECRET_ACCESS_KEY
-      aws_region_name: ap-southeast-1
+  # claude-sonnet-3-7 not available in this Bedrock account — omitted
 
   - model_name: claude-sonnet-3-5
     litellm_params:
-      model: bedrock/global.anthropic.claude-3-5-sonnet-20241022-v2:0
+      # Requires cross-region inference profile prefix in ap-southeast-1
+      model: bedrock/apac.anthropic.claude-3-5-sonnet-20241022-v2:0
       aws_access_key_id: os.environ/BEDROCK_HK_ACCESS_KEY_ID
       aws_secret_access_key: os.environ/BEDROCK_HK_SECRET_ACCESS_KEY
       aws_region_name: ap-southeast-1
 
-  - model_name: claude-haiku-3-5
+  # claude-haiku-3-5 removed — LEGACY in us-east-1, access revoked by AWS
+
+  - model_name: claude-haiku-3
     litellm_params:
-      model: bedrock/global.anthropic.claude-3-5-haiku-20241022-v1:0
+      # Claude 3 Haiku — ACTIVE in ap-southeast-1, good for lightweight tasks
+      model: bedrock/anthropic.claude-3-haiku-20240307-v1:0
       aws_access_key_id: os.environ/BEDROCK_HK_ACCESS_KEY_ID
       aws_secret_access_key: os.environ/BEDROCK_HK_SECRET_ACCESS_KEY
       aws_region_name: ap-southeast-1

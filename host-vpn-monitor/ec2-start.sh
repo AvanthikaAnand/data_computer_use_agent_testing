@@ -38,7 +38,8 @@ echo "==> postgres healthy, LiteLLM up"
 for i in $(seq 1 "$NUM_AGENTS"); do
     NOVNC_PORT=$((6080 + i))
     GRADIO_PORT=$((7860 + i))
-    API_PORT=$((8800 + i))
+    API_PORT=$((8800 + i))    # task API (port 8000 inside container)
+    FILE_PORT=$((8900 + i))   # filebrowser (port 8080 inside container)
     VNC_PORT=$((5910 + i))
     NAME="cu-agent-$i"
 
@@ -67,9 +68,11 @@ for i in $(seq 1 "$NUM_AGENTS"); do
         -e AGENT_ID="$i" \
         -e WIDTH=1920 -e HEIGHT=1080 \
         -e AGENT_HOST="$EC2_IP" \
+        --network cu-agent_default \
         -p "${NOVNC_PORT}:6080" \
         -p "${GRADIO_PORT}:7860" \
-        -p "${API_PORT}:8080" \
+        -p "${API_PORT}:8000" \
+        -p "${FILE_PORT}:8080" \
         -p "${VNC_PORT}:5901" \
         --restart unless-stopped \
         "$IMAGE"
@@ -101,8 +104,11 @@ docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" \
   | grep -E "NAMES|cu-agent|litellm|postgres|cu-vpn"
 
 echo ""
-echo "==> noVNC access:"
+echo "==> Access URLs:"
 for i in $(seq 1 "$NUM_AGENTS"); do
-    echo "    Agent $i → http://$EC2_IP:$((6080 + i))"
+    echo "    Agent $i  noVNC → http://$EC2_IP:$((6080 + i))"
+    echo "    Agent $i  API   → http://$EC2_IP:$((8800 + i))/task  (POST)"
+    echo "    Agent $i  UI    → http://$EC2_IP:$((7860 + i))"
 done
 echo "    LiteLLM  → http://$EC2_IP:4000"
+echo "    Traefik  → http://$EC2_IP:80  (load-balanced API)"

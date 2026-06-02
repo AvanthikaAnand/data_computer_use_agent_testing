@@ -48,17 +48,6 @@ jobs:
             VPN_DIR="/home/ec2-user/vpn"
             IMAGE="cu-vpn:latest"
 
-            # Read Slack token from running container env, fall back to .env
-            SLACK_TOKEN=$(
-              docker inspect "$CONTAINER" \
-                --format '{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null \
-              | grep '^SLACK_BOT_TOKEN=' | cut -d= -f2- || true
-            )
-            if [ -z "$SLACK_TOKEN" ]; then
-              SLACK_TOKEN=$(grep SLACK_BOT_TOKEN /home/ec2-user/.env 2>/dev/null \
-                | cut -d= -f2- | tr -d '"' || true)
-            fi
-
             # Stop ONLY cu-vpn — never touch cu-agent-* containers
             docker stop  "$CONTAINER" 2>/dev/null || true
             docker rm    "$CONTAINER" 2>/dev/null || true
@@ -69,8 +58,7 @@ jobs:
               --privileged \
               --restart=unless-stopped \
               -v "$VPN_DIR":/vpn:ro \
-              -e SLACK_BOT_TOKEN="$SLACK_TOKEN" \
-              -e SLACK_VPN_CHANNEL="C0B7FUXGHU0" \
+              --env-file /home/ec2-user/.env \
               -e HOSTNAME_LABEL="cu-agent-ec2" \
               -e VPN_CHECK_INTERVAL=60 \
               "$IMAGE"

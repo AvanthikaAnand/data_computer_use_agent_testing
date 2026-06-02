@@ -67,8 +67,7 @@ $SSH "
         --privileged \
         --restart=unless-stopped \
         -v $VPN_DIR:/vpn:ro \
-        -e SLACK_BOT_TOKEN='$SLACK_TOKEN' \
-        -e SLACK_VPN_CHANNEL='$SLACK_CHANNEL' \
+        --env-file /home/ec2-user/.env \
         -e HOSTNAME_LABEL='cu-agent-ec2' \
         -e VPN_CHECK_INTERVAL=60 \
         $IMAGE
